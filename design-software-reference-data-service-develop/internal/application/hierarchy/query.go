@@ -9,6 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	contracts "github.com/code-sena/design-software-reference-data-service/internal/contracts/events"
 )
 
 var ErrNotFound = errors.New("institutional hierarchy resource not found")
@@ -86,7 +88,7 @@ func NewEventEnvelope(eventType string, payload any, correlationID string, now t
 		return EventEnvelope{}, err
 	}
 	timestamp := now.UTC().Format(time.RFC3339)
-	return EventEnvelope{
+	envelope := EventEnvelope{
 		EnvelopeVersion: "1.0",
 		Version:         "1.0",
 		EventID:         NewEventID(),
@@ -97,7 +99,11 @@ func NewEventEnvelope(eventType string, payload any, correlationID string, now t
 		OccurredAt:      timestamp,
 		CorrelationID:   correlationID,
 		Payload:         encoded,
-	}, nil
+	}
+	if err := contracts.ValidateEnvelope(envelope); err != nil {
+		return EventEnvelope{}, err
+	}
+	return envelope, nil
 }
 
 type ChangeType string

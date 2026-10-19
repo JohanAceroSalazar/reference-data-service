@@ -6,8 +6,10 @@ import (
 	"errors"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/code-sena/design-software-reference-data-service/internal/adapter/out/persistence"
+	application "github.com/code-sena/design-software-reference-data-service/internal/application/hierarchy"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -26,7 +28,17 @@ func TestOutboxInsertAndPending(t *testing.T) {
 	}
 
 	store := persistence.NewOutboxStore(db)
-	event, err := persistence.NewOutboxEvent("catalog", "catalog-1", "reference.catalog.updated", map[string]string{"id": "catalog-1"})
+	event, err := persistence.NewOutboxEvent("catalog", "catalog-1", "reference.catalog.updated", application.CatalogUpdated{
+		CatalogID:   "catalog-1",
+		CatalogCode: "MODALITY",
+		ChangedItems: []application.CatalogChangeItem{{
+			ItemID:     "catalog-1",
+			Code:       "MODALITY",
+			Label:      "Modality",
+			ChangeType: application.ChangeTypeUpdated,
+		}},
+		UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

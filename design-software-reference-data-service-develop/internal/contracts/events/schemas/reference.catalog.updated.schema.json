@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.reference-data-service.local/events/reference.catalog.updated.schema.json",
+  "title": "reference.catalog.updated",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["envelope_version", "version", "event_id", "event_type", "source_service", "source_port", "timestamp", "occurred_at", "payload"],
+  "properties": {
+    "envelope_version": { "const": "1.0" },
+    "version": { "const": "1.0" },
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": { "const": "reference.catalog.updated" },
+    "source_service": { "const": "reference-data-service" },
+    "source_port": { "const": 8002 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "correlation_id": { "type": "string", "minLength": 1 },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["catalog_id", "catalog_code", "changed_items", "updated_by", "updated_at"],
+      "properties": {
+        "catalog_id": { "type": "string", "minLength": 1 },
+        "catalog_code": { "type": "string", "minLength": 1 },
+        "changed_items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["item_id", "code", "label", "change_type"],
+            "properties": {
+              "item_id": { "type": "string", "minLength": 1 },
+              "code": { "type": "string", "minLength": 1 },
+              "label": { "type": "string", "minLength": 1 },
+              "change_type": { "enum": ["ADDED", "UPDATED", "DEACTIVADO"] }
+            }
+          }
+        },
+        "updated_by": { "type": "string" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

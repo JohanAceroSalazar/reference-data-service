@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
+	"time"
 
 	persistenceadapter "github.com/code-sena/design-software-reference-data-service/internal/adapter/out/postgres"
 	application "github.com/code-sena/design-software-reference-data-service/internal/application/hierarchy"
@@ -33,7 +34,25 @@ func TestCreateAndOutboxCommitAtomically(t *testing.T) {
 	name := "Outbox integration test"
 	command := application.Command{Name: &name, Code: &code}
 	item, err := repo.CreateWithOutbox(ctx, "catalogs", command, "catalog", "reference.catalog.updated", func(item json.RawMessage) (any, error) {
-		return map[string]any{"item": json.RawMessage(item)}, nil
+		var catalog struct {
+			ID   string `json:"id"`
+			Code string `json:"code"`
+			Name string `json:"name"`
+		}
+		if err := json.Unmarshal(item, &catalog); err != nil {
+			return nil, err
+		}
+		return application.CatalogUpdated{
+			CatalogID:   catalog.ID,
+			CatalogCode: catalog.Code,
+			ChangedItems: []application.CatalogChangeItem{{
+				ItemID:     catalog.ID,
+				Code:       catalog.Code,
+				Label:      catalog.Name,
+				ChangeType: application.ChangeTypeAdded,
+			}},
+			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+		}, nil
 	})
 	if err != nil {
 		t.Fatal(err)

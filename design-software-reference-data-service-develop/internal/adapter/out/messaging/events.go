@@ -9,6 +9,7 @@ import (
 	"time"
 
 	application "github.com/code-sena/design-software-reference-data-service/internal/application/hierarchy"
+	contracts "github.com/code-sena/design-software-reference-data-service/internal/contracts/events"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
@@ -82,6 +83,9 @@ func (p *AMQPPublisher) publishEnvelopeWithID(ctx context.Context, eventType str
 	}
 	if eventID != "" {
 		envelope.EventID = eventID
+	}
+	if err := contracts.ValidateEnvelope(envelope); err != nil {
+		return err
 	}
 	body, err := json.Marshal(envelope)
 	if err != nil {
