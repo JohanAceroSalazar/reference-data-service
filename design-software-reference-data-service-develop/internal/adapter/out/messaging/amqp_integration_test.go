@@ -9,6 +9,7 @@ import (
 	"time"
 
 	application "github.com/code-sena/design-software-reference-data-service/internal/application/hierarchy"
+	contracts "github.com/code-sena/design-software-reference-data-service/internal/contracts/events"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -55,6 +56,9 @@ func TestAMQPPublisherIntegration(t *testing.T) {
 		var envelope map[string]any
 		if err := json.Unmarshal(delivery.Body, &envelope); err != nil {
 			t.Fatal(err)
+		}
+		if err := contracts.ValidateEnvelope(envelope); err != nil {
+			t.Fatalf("received event does not satisfy JSON Schema: %v", err)
 		}
 		if envelope["event_type"] != "reference.catalog.updated" || envelope["source_service"] != "reference-data-service" || envelope["correlation_id"] != "request-id" {
 			t.Fatalf("unexpected envelope: %v", envelope)

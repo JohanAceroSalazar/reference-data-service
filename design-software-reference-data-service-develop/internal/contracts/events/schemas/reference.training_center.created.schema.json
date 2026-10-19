@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.reference-data-service.local/events/reference.training_center.created.schema.json",
+  "title": "reference.training_center.created",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["envelope_version", "version", "event_id", "event_type", "source_service", "source_port", "timestamp", "occurred_at", "payload"],
+  "properties": {
+    "envelope_version": { "const": "1.0" },
+    "version": { "const": "1.0" },
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": { "const": "reference.training_center.created" },
+    "source_service": { "const": "reference-data-service" },
+    "source_port": { "const": 8002 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "correlation_id": { "type": "string", "minLength": 1 },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["training_center_id", "center_code", "name", "municipality_id", "created_by", "created_at"],
+      "properties": {
+        "training_center_id": { "type": "string", "minLength": 1 },
+        "center_code": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "municipality_id": { "type": "string", "minLength": 1 },
+        "created_by": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

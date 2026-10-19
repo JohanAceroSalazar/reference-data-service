@@ -107,3 +107,19 @@ func TestAMQPPublisherRetriesAndSendsToDLQ(t *testing.T) {
 		t.Fatalf("last publish was not DLQ: %v", exchanges)
 	}
 }
+
+func TestAMQPPublisherRejectsInvalidEventBeforePublishing(t *testing.T) {
+	publisher := NewAMQPPublisher("amqp://guest:guest@localhost:5672/")
+	published := false
+	publisher.publish = func(_ context.Context, _, _ string, _ []byte) error {
+		published = true
+		return nil
+	}
+	err := publisher.PublishOutboxEvent(context.Background(), "1e68b101-a8f0-4b4e-87fe-a4db5d4d5045", "reference.catalog.updated", map[string]any{"catalog_id": "catalog-1"})
+	if err == nil {
+		t.Fatal("expected invalid event to be rejected")
+	}
+	if published {
+		t.Fatal("invalid event must not be published")
+	}
+}

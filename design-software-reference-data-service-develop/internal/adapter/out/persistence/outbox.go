@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	contracts "github.com/code-sena/design-software-reference-data-service/internal/contracts/events"
 	"github.com/google/uuid"
 )
 
@@ -38,7 +39,8 @@ func NewOutboxEvent(aggregateType, aggregateID, eventType string, payload any) (
 	if err != nil {
 		return OutboxEvent{}, err
 	}
-	return OutboxEvent{
+	now := time.Now().UTC()
+	event := OutboxEvent{
 		ID:            uuid.New(),
 		EventID:       uuid.New(),
 		AggregateType: aggregateType,
@@ -47,9 +49,13 @@ func NewOutboxEvent(aggregateType, aggregateID, eventType string, payload any) (
 		Payload:       body,
 		Status:        OutboxPending,
 		Attempts:      0,
-		CreatedAt:     time.Now().UTC(),
-		UpdatedAt:     time.Now().UTC(),
-	}, nil
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if err := contracts.ValidateOutboxEvent(event.EventType, event.EventID.String(), payload, event.CreatedAt); err != nil {
+		return OutboxEvent{}, err
+	}
+	return event, nil
 }
 
 type OutboxStore struct {
