@@ -1,0 +1,64 @@
+name: Reference Data Event Contracts
+
+on:
+  pull_request:
+    branches: [develop, hu-02-dev]
+    paths:
+      - 'design-software-reference-data-service-develop/**/*.go'
+      - 'design-software-reference-data-service-develop/go.mod'
+      - 'design-software-reference-data-service-develop/go.sum'
+      - 'design-software-reference-data-service-develop/internal/contracts/events/**'
+      - '.github/workflows/reference-data-event-contracts.yml'
+  push:
+    branches: [develop, hu-02-dev]
+    paths:
+      - 'design-software-reference-data-service-develop/**/*.go'
+      - 'design-software-reference-data-service-develop/go.mod'
+      - 'design-software-reference-data-service-develop/go.sum'
+      - 'design-software-reference-data-service-develop/internal/contracts/events/**'
+      - '.github/workflows/reference-data-event-contracts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  event-contracts:
+    name: Validate JSON Schema and AMQP event contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      rabbitmq:
+        image: rabbitmq:3.13-management
+        env:
+          RABBITMQ_DEFAULT_USER: r5c_ci
+          RABBITMQ_DEFAULT_PASS: r5c_ci_only
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: design-software-reference-data-service-develop
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: design-software-reference-data-service-develop/go.mod
+
+      - name: Run JSON Schema contract tests
+        run: go test ./internal/contracts/events -v -count=1
+
+      - name: Verify rejection before outbox persistence
+        run: go test ./internal/adapter/out/persistence -run '^TestNewOutboxEventRejectsInvalidContractPayload$' -v -count=1
+
+      - name: Run RabbitMQ event contract integration
+        env:
+          REFERENCE_DATA_AMQP_URL: amqp://r5c_ci:r5c_ci_only@localhost:5672/
+        run: go test ./internal/adapter/out/messaging -run '^TestAMQPPublisherIntegration$|^TestAMQPPublisherRoutesUnroutableMessageToRealDLQ$' -v -count=1
