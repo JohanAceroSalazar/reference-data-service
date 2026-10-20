@@ -1,0 +1,97 @@
+name: Reference Data Pact provider
+
+on:
+  pull_request:
+    paths:
+      - 'design-software-reference-data-service-develop/**/*.go'
+      - 'design-software-reference-data-service-develop/go.mod'
+      - 'design-software-reference-data-service-develop/go.sum'
+      - '.github/workflows/pact-provider.yml'
+  push:
+    branches: [develop, hu-02-dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify the consumer-generated Pact
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # The repositories are private and independent. This fine-grained token
+      # must have Contents: Read only on reference-mfe and platform; it is never
+      # written to disk or printed.
+      - name: Require cross-repository read token
+        env:
+          CROSS_REPO_READ_TOKEN: ${{ secrets.CROSS_REPO_READ_TOKEN }}
+        run: |
+          test -n "$CROSS_REPO_READ_TOKEN" || {
+            echo '::error::Set CROSS_REPO_READ_TOKEN with Contents: Read on JohanAceroSalazar/reference-mfe and JohanAceroSalazar/platform.'
+            exit 1
+          }
+
+      - name: Check out the real Pact consumer
+        uses: actions/checkout@v4
+        with:
+          repository: JohanAceroSalazar/reference-mfe
+          ref: develop
+          path: .pact/consumer
+          token: ${{ secrets.CROSS_REPO_READ_TOKEN }}
+          persist-credentials: false
+
+      - name: Check out Frontend Platform required by the consumer
+        uses: actions/checkout@v4
+        with:
+          repository: JohanAceroSalazar/platform
+          ref: develop
+          path: .pact/platform
+          token: ${{ secrets.CROSS_REPO_READ_TOKEN }}
+          persist-credentials: false
+
+      - name: Stage the local platform package required by the consumer
+        shell: bash
+        run: |
+          set -euo pipefail
+          consumer_root="$GITHUB_WORKSPACE/.pact/consumer"
+          platform_package="$GITHUB_WORKSPACE/.pact/platform/design-software-frontend-platform-develop"
+          test -f "$consumer_root/design-software-reference-data-mfe-develop/package.json"
+          test -f "$platform_package/package.json"
+          cp -a "$platform_package" "$consumer_root/design-software-frontend-platform-develop"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.15.0'
+          cache: npm
+          cache-dependency-path: .pact/consumer/design-software-reference-data-mfe-develop/package-lock.json
+
+      - name: Generate Pact from the real consumer adapter
+        working-directory: .pact/consumer/design-software-reference-data-mfe-develop
+        run: |
+          npm ci
+          npm run test:pact
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.0'
+
+      - name: Install Pact FFI
+        working-directory: design-software-reference-data-service-develop
+        # pact-go defaults to /usr/local/lib, which is not writable by the
+        # GitHub Actions runner. Its CGO linker configuration searches /tmp.
+        run: go run github.com/pact-foundation/pact-go/v2 install --libDir /tmp
+
+      - name: Verify real protected provider routes
+        working-directory: design-software-reference-data-service-develop
+        env:
+          PACT_CONTRACT_PATH: ${{ github.workspace }}/.pact/consumer/design-software-reference-data-mfe-develop/pacts/ReferenceDataMfe-ReferenceDataService.json
+        run: |
+          gcc --version
+          CGO_ENABLED=1 go test -tags pact ./internal/adapter/in/http/hierarchy -run TestPactProvider -v
+
+      - name: Run Go regression tests
+        working-directory: design-software-reference-data-service-develop
+        run: go test ./...
